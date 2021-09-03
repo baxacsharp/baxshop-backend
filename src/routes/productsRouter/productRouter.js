@@ -671,6 +671,7 @@ router.post(
         product: savedProduct,
       })
     } catch (error) {
+      console.log(error)
       return res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })
