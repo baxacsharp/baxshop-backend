@@ -5,17 +5,13 @@ const WishListSchema = new Schema(
   {
     product: {
       type: Schema.Types.ObjectId,
-      ref: "Products",
+      ref: "Product",
       default: null,
     },
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
       default: null,
-    },
-    isLiked: {
-      type: Boolean,
-      default: false,
     },
   },
   { timestamps: true }

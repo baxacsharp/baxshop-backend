@@ -12,10 +12,11 @@ import { calculateTaxAmount } from "../../helpers/tax.js"
 
 router.post("/add", JWTAuthMiddleware, async (req, res) => {
   try {
+    // console.log(req.body)
     const cart = req.body.cartId
     const total = req.body.total
     const user = req.user._id
-
+    // console.log(total)
     const order = new Order({
       cart,
       user,
@@ -39,7 +40,7 @@ router.post("/add", JWTAuthMiddleware, async (req, res) => {
       products: cartDoc.products,
     }
 
-    await orderConfirmationEmail(order.user)
+    // await orderConfirmationEmail(order.user)
 
     res.status(200).json({
       success: true,
@@ -47,6 +48,7 @@ router.post("/add", JWTAuthMiddleware, async (req, res) => {
       order: { _id: orderDoc._id },
     })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })

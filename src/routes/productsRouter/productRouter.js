@@ -1,22 +1,26 @@
-import express from "express"
+import express, { response } from "express"
 
 const router = express.Router()
 
 import multer from "multer"
-import Aws from "aws-sdk"
+import AWS from "aws-sdk"
 import Mongoose from "mongoose"
 import jwt from "jsonwebtoken"
 // Bring in Models & Helpers
 import Product from "../../schemas/ProductsSchema.js"
 import Brand from "../../schemas/brandSchema.js"
 import Category from "../../schemas/categorySchema.js"
+import { CloudinaryStorage } from "multer-storage-cloudinary"
+import { v2 as cloudinary } from "cloudinary"
 import Wishlist from "../../schemas/wishListSchema.js"
 import { JWTAuthMiddleware } from "../../Auth/middlewares.js"
 import { role } from "../../Auth/permissions.js"
-import { JWTAuthenticate } from "../../Auth/tools.js"
-const storage = multer.memoryStorage()
-const upload = multer({ storage })
-
+import { JWTAuthenticate, verifyToken } from "../../Auth/tools.js"
+const cloudinaryStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "Ecommerce-product" },
+})
+const upload = multer({ storage: cloudinaryStorage }).array("image")
 // fetch product slug api
 router.get("/item/:slug", async (req, res) => {
   try {
@@ -65,6 +69,7 @@ router.get("/list/search/:name", async (req, res) => {
       products: productDoc,
     })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -77,7 +82,7 @@ router.post("/advancedFilters", async (req, res) => {
   const page = Number(req.body.pageNumber) || 1
   const name = req.body.name || ""
   const category = req.body.category || ""
-  const seller = req.body.Merchant || ""
+  const Merchant = req.body.Merchant || ""
   const order = req.body.order || ""
   const min =
     req.body.min && Number(req.body.min) !== 0 ? Number(req.body.min) : 0
@@ -157,99 +162,23 @@ router.post("/advancedFilters", async (req, res) => {
   ]
 
   try {
-    const userDoc = await JWTAuthenticate(req)
+    const productsCount = await Product.aggregate(basicQuery)
+    const paginateQuery = [
+      { $sort: sortOrder },
+      { $skip: pageSize * (productsCount.length > 8 ? page - 1 : 0) },
+      { $limit: pageSize },
+    ]
+    const products = await Product.aggregate(basicQuery.concat(paginateQuery))
 
-    if (userDoc) {
-      const productsCount = await Product.aggregate(
-        [
-          {
-            $lookup: {
-              from: "wishlists",
-              let: { product: "$_id" },
-              pipeline: [
-                {
-                  $match: {
-                    $and: [
-                      { $expr: { $eq: ["$$product", "$product"] } },
-                      { user: new Mongoose.Types.ObjectId(userDoc.id) },
-                    ],
-                  },
-                },
-              ],
-              as: "isLiked",
-            },
-          },
-          {
-            $addFields: {
-              isLiked: { $arrayElemAt: ["$isLiked.isLiked", 0] },
-            },
-          },
-        ].concat(basicQuery)
-      )
-
-      const paginateQuery = [
-        { $sort: sortOrder },
-        { $skip: pageSize * (productsCount.length > 8 ? page - 1 : 0) },
-        { $limit: pageSize },
-      ]
-
-      const products = await Product.aggregate(
-        [
-          {
-            $lookup: {
-              from: "wishlists",
-              let: { product: "$_id" },
-              pipeline: [
-                {
-                  $match: {
-                    $and: [
-                      { $expr: { $eq: ["$$product", "$product"] } },
-                      { user: new Mongoose.Types.ObjectId(userDoc.id) },
-                    ],
-                  },
-                },
-              ],
-              as: "isLiked",
-            },
-          },
-          {
-            $addFields: {
-              isLiked: { $arrayElemAt: ["$isLiked.isLiked", 0] },
-            },
-          },
-        ]
-          .concat(basicQuery)
-          .concat(paginateQuery)
-      )
-
-      res.status(200).json({
-        products: products.filter((item) => item?.brand?.isActive === true),
-        page: page,
-        pages:
-          productsCount.length > 0
-            ? Math.ceil(productsCount.length / pageSize)
-            : 0,
-        totalProducts: productsCount.length,
-      })
-    } else {
-      const productsCount = await Product.aggregate(basicQuery)
-      const paginateQuery = [
-        { $sort: sortOrder },
-        { $skip: pageSize * (productsCount.length > 8 ? page - 1 : 0) },
-        { $limit: pageSize },
-      ]
-      const products = await Product.aggregate(basicQuery.concat(paginateQuery))
-
-      res.status(200).json({
-        products: products.filter((item) => item?.brand?.isActive === true),
-        page: page,
-        pages:
-          productsCount.length > 0
-            ? Math.ceil(productsCount.length / pageSize)
-            : 0,
-        totalProducts: productsCount.length,
-      })
-    }
+    res.status(200).json({
+      products: products.filter((item) => item?.brand?.isActive === true),
+      page: page,
+      pages:
+        productsCount.length > 0
+          ? Math.ceil(productsCount.length / pageSize)
+          : 0,
+      totalProducts: productsCount.length,
+    })
   } catch (error) {
     console.log(error)
     res.status(400).json({
@@ -261,152 +190,69 @@ router.post("/advancedFilters", async (req, res) => {
 // fetch store products api
 router.get("/list", async (req, res) => {
   try {
-    const userDoc = await JWTAuthenticate(req)
+    // const userDoc = await JWTAuthenticate(req.user)
 
-    if (userDoc) {
-      const products = await Product.aggregate([
-        {
-          $match: { isActive: true },
+    const products = await Product.aggregate([
+      {
+        $match: { isActive: true },
+      },
+      {
+        $lookup: {
+          from: "brands",
+          localField: "brand",
+          foreignField: "_id",
+          as: "brands",
         },
-        {
-          $lookup: {
-            from: "wishlists",
-            let: { product: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $and: [
-                    { $expr: { $eq: ["$$product", "$product"] } },
-                    { user: new Mongoose.Types.ObjectId(userDoc.id) },
-                  ],
-                },
-              },
+      },
+      {
+        $unwind: "$brands",
+      },
+      {
+        $addFields: {
+          "brand.name": "$brands.name",
+          "brand._id": "$brands._id",
+          "brand.isActive": "$brands.isActive",
+        },
+      },
+      {
+        $lookup: {
+          from: "reviews",
+          localField: "_id",
+          foreignField: "product",
+          as: "reviews",
+        },
+      },
+      {
+        $addFields: {
+          totalRatings: { $sum: "$reviews.rating" },
+          totalReviews: { $size: "$reviews" },
+        },
+      },
+      {
+        $addFields: {
+          averageRating: {
+            $cond: [
+              { $eq: ["$totalReviews", 0] },
+              0,
+              { $divide: ["$totalRatings", "$totalReviews"] },
             ],
-            as: "isLiked",
           },
         },
-        {
-          $addFields: {
-            isLiked: { $arrayElemAt: ["$isLiked.isLiked", 0] },
-          },
-        },
-        {
-          $lookup: {
-            from: "brands",
-            localField: "brand",
-            foreignField: "_id",
-            as: "brands",
-          },
-        },
-        {
-          $unwind: "$brands",
-        },
-        {
-          $addFields: {
-            "brand.name": "$brands.name",
-            "brand._id": "$brands._id",
-            "brand.isActive": "$brands.isActive",
-          },
-        },
-        {
-          $lookup: {
-            from: "reviews",
-            localField: "_id",
-            foreignField: "product",
-            as: "reviews",
-          },
-        },
-        {
-          $addFields: {
-            totalRatings: { $sum: "$reviews.rating" },
-            totalReviews: { $size: "$reviews" },
-          },
-        },
-        {
-          $addFields: {
-            averageRating: {
-              $cond: [
-                { $eq: ["$totalReviews", 0] },
-                0,
-                { $divide: ["$totalRatings", "$totalReviews"] },
-              ],
-            },
-          },
-        },
-        { $project: { brands: 0, reviews: 0 } },
-      ])
+      },
+      { $project: { brands: 0, reviews: 0 } },
+    ])
 
-      res.status(200).json({
-        products: products
-          .filter((item) => item?.brand?.isActive === true)
-          .reverse()
-          .slice(0, 8),
-        page: 1,
-        pages: products.length > 0 ? Math.ceil(products.length / 8) : 0,
-        totalProducts: products.length,
-      })
-    } else {
-      const products = await Product.aggregate([
-        {
-          $match: { isActive: true },
-        },
-        {
-          $lookup: {
-            from: "brands",
-            localField: "brand",
-            foreignField: "_id",
-            as: "brands",
-          },
-        },
-        {
-          $unwind: "$brands",
-        },
-        {
-          $addFields: {
-            "brand.name": "$brands.name",
-            "brand._id": "$brands._id",
-            "brand.isActive": "$brands.isActive",
-          },
-        },
-        {
-          $lookup: {
-            from: "reviews",
-            localField: "_id",
-            foreignField: "product",
-            as: "reviews",
-          },
-        },
-        {
-          $addFields: {
-            totalRatings: { $sum: "$reviews.rating" },
-            totalReviews: { $size: "$reviews" },
-          },
-        },
-        {
-          $addFields: {
-            averageRating: {
-              $cond: [
-                { $eq: ["$totalReviews", 0] },
-                0,
-                { $divide: ["$totalRatings", "$totalReviews"] },
-              ],
-            },
-          },
-        },
-        { $project: { brands: 0, reviews: 0 } },
-      ])
-
-      res.status(200).json({
-        products: products
-          .filter((item) => item?.brand?.isActive === true)
-          .reverse()
-          .slice(0, 8),
-        page: 1,
-        pages: products.length > 0 ? Math.ceil(products.length / 8) : 0,
-        totalProducts: products.length,
-      })
-    }
+    res.status(200).json({
+      products: products
+        .filter((item) => item?.brand?.isActive === true)
+        .reverse()
+        .slice(0, 8),
+      page: 1,
+      pages: products.length > 0 ? Math.ceil(products.length / 8) : 0,
+      totalProducts: products.length,
+    })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -417,8 +263,6 @@ router.get("/list", async (req, res) => {
 router.get("/list/category/:slug", async (req, res) => {
   try {
     const slug = req.params.slug
-
-    const userDoc = await JWTAuthenticate(req)
 
     const categoryDoc = await Category.findOne(
       { slug, isActive: true },
@@ -443,41 +287,13 @@ router.get("/list/category/:slug", async (req, res) => {
 
     let products = []
 
-    if (userDoc) {
-      const wishlist = await Wishlist.find({
-        user: userDoc.id,
-        isLiked: true,
-      }).populate({
-        path: "product",
-        select: "_id",
-      })
-
-      const ps = categoryDoc.products || []
-
-      const newPs = []
-      ps.map((p) => {
-        let isLiked = false
-
-        wishlist.map((w) => {
-          if (String(w.product._id) === String(p._id)) {
-            isLiked = true
-          }
-        })
-
-        const newProduct = { ...p.toObject(), isLiked }
-
-        newPs.push(newProduct)
-      })
-
-      products = newPs
-    } else {
-      products = categoryDoc.products
-    }
+    products = categoryDoc.products
 
     res.status(200).json({
       products,
     })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -497,73 +313,16 @@ router.get("/list/brand/:slug", async (req, res) => {
       })
     }
 
-    const userDoc = await JWTAuthenticate(req)
+    const products = await Product.find({
+      brand: brand._id,
+      isActive: true,
+    }).populate("brand", "name")
 
-    if (userDoc) {
-      const products = await Product.aggregate([
-        {
-          $match: {
-            isActive: true,
-            brand: brand._id,
-          },
-        },
-        {
-          $lookup: {
-            from: "wishlists",
-            let: { product: "$_id" },
-            pipeline: [
-              {
-                $match: {
-                  $and: [
-                    { $expr: { $eq: ["$$product", "$product"] } },
-                    { user: new Mongoose.Types.ObjectId(userDoc.id) },
-                  ],
-                },
-              },
-            ],
-            as: "isLiked",
-          },
-        },
-        {
-          $lookup: {
-            from: "brands",
-            localField: "brand",
-            foreignField: "_id",
-            as: "brands",
-          },
-        },
-        {
-          $addFields: {
-            isLiked: { $arrayElemAt: ["$isLiked.isLiked", 0] },
-          },
-        },
-        {
-          $unwind: "$brands",
-        },
-        {
-          $addFields: {
-            "brand.name": "$brands.name",
-            "brand._id": "$brands._id",
-            "brand.isActive": "$brands.isActive",
-          },
-        },
-        { $project: { brands: 0 } },
-      ])
-
-      res.status(200).json({
-        products,
-      })
-    } else {
-      const products = await Product.find({
-        brand: brand._id,
-        isActive: true,
-      }).populate("brand", "name")
-
-      res.status(200).json({
-        products,
-      })
-    }
+    res.status(200).json({
+      products,
+    })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -578,6 +337,7 @@ router.get("/list/select", JWTAuthMiddleware, async (req, res) => {
       products,
     })
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -589,9 +349,10 @@ router.post(
   "/add",
   JWTAuthMiddleware,
   role.checkRole(role.ROLES.Admin, role.ROLES.Merchant),
-  upload.single("image"),
+  upload,
   async (req, res) => {
     try {
+      console.log(req.body)
       const sku = req.body.sku
       const name = req.body.name
       const description = req.body.description
@@ -600,7 +361,7 @@ router.post(
       const taxable = req.body.taxable
       const isActive = req.body.isActive
       const brand = req.body.brand
-      const image = req.file
+      const imageUrl = req.files[0].path
 
       if (!sku) {
         return res.status(400).json({ error: "You must enter sku." })
@@ -626,30 +387,6 @@ router.post(
         return res.status(400).json({ error: "This sku is already in use." })
       }
 
-      let imageUrl = ""
-      let imageKey = ""
-
-      if (image) {
-        const s3bucket = new AWS.S3({
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          region: process.env.AWS_REGION,
-        })
-
-        const params = {
-          Bucket: process.env.AWS_BUCKET_NAME,
-          Key: image.originalname,
-          Body: image.buffer,
-          ContentType: image.mimetype,
-          ACL: "public-read",
-        }
-
-        const s3Upload = await s3bucket.upload(params).promise()
-
-        imageUrl = s3Upload.Location
-        imageKey = s3Upload.key
-      }
-
       const product = new Product({
         sku,
         name,
@@ -660,7 +397,6 @@ router.post(
         isActive,
         brand,
         imageUrl,
-        imageKey,
       })
 
       const savedProduct = await product.save()
@@ -718,6 +454,7 @@ router.get(
         products,
       })
     } catch (error) {
+      console.log(response)
       res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })
@@ -766,6 +503,7 @@ router.get(
         product: productDoc,
       })
     } catch (error) {
+      console.log(error)
       res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })

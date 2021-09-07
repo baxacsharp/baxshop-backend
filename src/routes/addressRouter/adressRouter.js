@@ -33,8 +33,9 @@ addressRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
     const address = new adressSchema(
       Object.assign(req.body, { user: user._id })
     )
-    if (address) {
-      res.status(201).send(address)
+    const savedAddress = await address.save()
+    if (savedAddress) {
+      res.status(201).send(savedAddress)
     } else {
       next(createError(404, "User not found"))
     }

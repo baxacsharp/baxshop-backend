@@ -123,33 +123,37 @@ userRouter.post("/refreshToken", async (req, res, next) => {
     next(error)
   }
 })
-
-userRouter.get("/", JWTAuthMiddleware, async (req, res, next) => {
-  try {
-    const query = q2m(req.query)
-    const users = await Model.countDocuments(query.criteria)
-    const maxLimit = 10
-    if (!query.options.limit) query.options.limit = maxLimit
-    query.options.limit =
-      query.options.limit > maxLimit ? maxLimit : query.options.limit
-    const result = await Model.find(query.criteria)
-      .sort(query.options.sort)
-      .skip(query.options.skip || 0)
-      .limit(query.options.limit)
-    const response = result.map((entry) => ({
-      _id: entry._id,
-      firstName: entry.firstName,
-      lastName: entry.lastName,
-      avatar: entry.avatar,
-    }))
-    const pages = Math.ceil(users / query.options.limit)
-    res
-      .status(200)
-      .send({ navigation: query.links("/users", users), pages, response })
-  } catch (error) {
-    next(error)
+userRouter.get(
+  "/search",
+  JWTAuthMiddleware,
+  role.checkRole(role.ROLES.Admin),
+  async (req, res, next) => {
+    try {
+      const query = q2m(req.query)
+      const users = await Model.countDocuments(query.criteria)
+      const maxLimit = 10
+      if (!query.options.limit) query.options.limit = maxLimit
+      query.options.limit =
+        query.options.limit > maxLimit ? maxLimit : query.options.limit
+      const result = await Model.find(query.criteria)
+        .sort(query.options.sort)
+        .skip(query.options.skip || 0)
+        .limit(query.options.limit)
+      const response = result.map((entry) => ({
+        _id: entry._id,
+        firstName: entry.firstName,
+        lastName: entry.lastName,
+        avatar: entry.avatar,
+      }))
+      const pages = Math.ceil(users / query.options.limit)
+      res
+        .status(200)
+        .send({ navigation: query.links("/users", users), pages, response })
+    } catch (error) {
+      next(error)
+    }
   }
-})
+)
 
 userRouter.get("/me", JWTAuthMiddleware, async (req, res, next) => {
   try {

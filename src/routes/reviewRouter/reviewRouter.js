@@ -13,6 +13,7 @@ reviewRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
     await review.save()
     res.status(201).send(review)
   } catch (error) {
+    console.log(error)
     next(createError(500, "Internal server error"))
   }
 })
@@ -26,17 +27,18 @@ reviewRouter.get("/", async (req, res, next) => {
       })
       .populate({
         path: "product",
-        select: "name, imageUrl",
+        select: "name slug imageUrl",
       })
       .sort("-createdAt")
     res.status(200).send(reviews)
   } catch (error) {
+    console.log(error)
     next(createError(500, "Internal server error"))
   }
 })
-reviewRouter.get("/:id", async (req, res, next) => {
+reviewRouter.get("/:slug", async (req, res, next) => {
   try {
-    const product = await productSchema.findOne({ _id: req.params.id })
+    const product = await productSchema.findOne({ slug: req.params.slug })
     if (!product) {
       return res.status(404, "No reviews for this product")
     }
@@ -51,6 +53,7 @@ reviewRouter.get("/:id", async (req, res, next) => {
       .sort("-createdAt")
     res.status(200).send(reviews)
   } catch (error) {
+    console.log(error)
     next(createError(500, "Internal server error"))
   }
 })

@@ -60,24 +60,27 @@ export const calculateOrderTotal = (order) => {
   return total
 }
 export const calculateItemTax = (items) => {
+  console.log(items)
   const taxRate = 0.5
-  const products = items.map((item) => {
-    item.priceWithTax = 0
-    item.totalPrice = 0
-    item.totalTax = 0
-    item.buyPrice = 0
-    const price = item.buyPrice
-    const quantity = item.quantity
-    item.totalPrice = parseFloat(Number((price * quantity).toFixed(2)))
-    if (item.taxable) {
-      const taxAmount = price * (taxRate / 100) * 100
-      item.totalTax = parseFloat(Number((taxAmount * quantity).toFixed(2)))
+  const products =
+    items &&
+    items.map((item) => {
+      item.priceWithTax = 0
+      item.totalPrice = 0
+      item.totalTax = 0
+      item.buyPrice = 0
+      const price = item[0]?.price
+      const quantity = item[0]?.quantity
+      item.totalPrice = parseFloat(Number((price * quantity).toFixed(2)))
+      if (item.taxable) {
+        const taxAmount = price * (taxRate / 100) * 100
+        item.totalTax = parseFloat(Number((taxAmount * quantity).toFixed(2)))
 
-      item.priceWithTax = parseFloat(
-        Number((item.totalPrice + item.totalTax).toFixed(2))
-      )
-      return item
-    }
-  })
+        item.priceWithTax = parseFloat(
+          Number((item.totalPrice + item.totalTax).toFixed(2))
+        )
+        return item
+      }
+    })
   return products
 }
