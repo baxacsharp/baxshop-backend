@@ -1,15 +1,12 @@
 import mongoose from "mongoose"
 import bcrypt from "bcrypt"
+import crypto from "crypto"
 import { hashPassword } from "../Auth/tools.js"
 const { Schema, model } = mongoose
 const UserSchema = new Schema(
   {
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
-    // username: {
-    //   type: String,
-    //   unique: true,
-    // },
     email: { type: String, required: true, unique: true },
     merchant: {
       type: Schema.Types.ObjectId,
@@ -26,6 +23,14 @@ const UserSchema = new Schema(
     },
     facebookId: {
       type: String,
+    },
+    resetPasswordToken: {
+      type: String,
+      required: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      required: false,
     },
     avatar: {
       type: String,
@@ -59,7 +64,10 @@ UserSchema.statics.checkCredentials = async function (email, plainPw) {
 
   return null
 }
-
+// UserSchema.methods.generatePasswordReset = function () {
+//   this.resetPasswordToken = crypto.randomBytes(20).toString("hex")
+//   this.resetPasswordExpires = Date.now() + 3600000
+// }
 UserSchema.pre("save", async function (next) {
   const newUser = this
   const plaintextPassword = newUser.password

@@ -13,7 +13,7 @@ reviewRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
     await review.save()
     res.status(201).send(review)
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     next(createError(500, "Internal server error"))
   }
 })
@@ -32,7 +32,7 @@ reviewRouter.get("/", async (req, res, next) => {
       .sort("-createdAt")
     res.status(200).send(reviews)
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     next(createError(500, "Internal server error"))
   }
 })
@@ -53,7 +53,7 @@ reviewRouter.get("/:slug", async (req, res, next) => {
       .sort("-createdAt")
     res.status(200).send(reviews)
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     next(createError(500, "Internal server error"))
   }
 })

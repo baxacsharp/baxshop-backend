@@ -18,7 +18,7 @@ passport.use(
     async (accesToken, refreshToken, profile, passportNext) => {
       //this function will be executed when we got the response back from google
       try {
-        console.log(profile)
+        ////console.log(profile)
         // when we receive the user from google, we check if the user existent ot not
         const user = await UsersSchema.findOne({ googleId: profile.id })
         //if the user is existent we need to create him couple of token
@@ -28,10 +28,10 @@ passport.use(
         } else {
           // else we are creating a new user
           const newUser = {
-            name: profile.name.givenName,
-            surname: profile.name.familyName,
+            firstName: profile.name.givenName,
+            lastName: profile.name.familyName,
             email: profile.emails[0].value,
-            role: "User",
+            role: "ROLE_MEMBER",
             googleId: profile.id,
           }
           const createdUser = await new UsersSchema(newUser)
@@ -42,8 +42,8 @@ passport.use(
       } catch (error) {
         passportNext(error)
       }
-    })
-  
+    }
+  )
 )
 passport.serializeUser(function (user, passportNext) {
   // this is for req.user

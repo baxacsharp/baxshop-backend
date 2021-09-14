@@ -1,5 +1,18 @@
 import { body } from "express-validator"
-
+import { check } from "express-validator"
+export const CheckPassword = [
+  check("password")
+    .not()
+    .isEmpty()
+    .isLength({ min: 6 })
+    .withMessage("password must be at least 6 characters"),
+  check("confirmPassword", "Passwords donot match").custom(
+    (value, { req }) => value === req.body.password
+  ),
+]
+export const ResetValidator = [
+  body("email").exists().isEmail().withMessage("Enter email address"),
+]
 export const UserValidator = [
   body("firstName")
     .exists()

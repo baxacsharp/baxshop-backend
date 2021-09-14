@@ -2,6 +2,8 @@ import multer from "multer"
 import express from "express"
 import passport from "passport"
 import mongoose from "mongoose"
+import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
 import q2m from "query-to-mongo"
 import createError from "http-errors"
 import { v2 as cloudinary } from "cloudinary"
@@ -12,8 +14,14 @@ import { cookieOptions } from "../../Auth/tools.js"
 import { role } from "../../Auth/permissions.js"
 import { JWTAuthMiddleware } from "../../Auth/middlewares.js"
 import { refreshTokens, JWTAuthenticate } from "../../Auth/tools.js"
-import { LoginValidator, UserValidator } from "./validator.js"
-import { signUpEmail } from "../../helpers/email.js"
+import {
+  LoginValidator,
+  ResetValidator,
+  UserValidator,
+  CheckPassword,
+} from "./validator.js"
+import crypto from "crypto"
+import { signUpEmail, resetEmail } from "../../helpers/email.js"
 const { isValidObjectId } = mongoose
 const userRouter = express.Router()
 
@@ -68,7 +76,7 @@ userRouter.post("/login", LoginValidator, async (req, res, next) => {
     next(error)
   }
 })
-
+userRouter
 userRouter.get(
   "/google/login",
   passport.authenticate("google", { scope: ["profile", "email"] })
@@ -78,19 +86,83 @@ userRouter.get(
   passport.authenticate("google"),
   async (req, res, next) => {
     try {
-      const { tokens } = req.user
-      res.cookie("accessToken", tokens.accessToken, cookieOptions)
-      res.cookie("refreshToken", tokens.refreshToken, {
-        ...cookieOptions,
-        path: "/users/refreshToken",
-      })
-      res.redirect("/products")
+      ;async (req, res) => {
+        const payload = {
+          id: req.user.id,
+        }
+        await JWTAuthenticate(payload)
+      }
+      res.redirect("http://localhost:3000/shop")
     } catch (error) {
+      ////console.log(error)
       next(error)
     }
   }
 )
-
+userRouter.post("/recover", ResetValidator, async (req, res, next) => {
+  try {
+    const errors = validationResult(req)
+    if (errors.isEmpty()) {
+      const user = await Model.findOne({ email: req.body.email })
+      if (!user) {
+        next(createError(404, `Email, not found`))
+      } else {
+        const resetToken = crypto.randomBytes(20).toString("hex")
+        user.resetPasswordToken = resetToken
+        user.resetPasswordExpires = Date.now() + 3600000
+        const savedUser = await user.save()
+        await resetEmail(req.headers.host, resetToken, user)
+        res.status(201).send({ message: ` A reset email has been sent` })
+      }
+    } else {
+      next(createError(400, errors.mapped()))
+    }
+  } catch (error) {
+    next(error)
+    console.log(error)
+  }
+})
+// userRouter.get("/reset/:token", async (req, res, next) => {
+//   try {
+//     const user = Model.findOne({
+//       resetPasswordToken: req.params.token,
+//       resetPasswordExpires: { $gt: Date.now() },
+//     })
+//     if (!user) {
+//       next(createError(401, `User isnot found`))
+//     }
+//     res.render("reset", { user })
+//   } catch (error) {
+//     next(error)
+//     console.log(error)
+//   }
+// })
+userRouter.post("/reset/:token", CheckPassword, async (req, res, next) => {
+  try {
+    const errors = validationResult(req)
+    if (errors.isEmpty()) {
+      const user = await Model.findOne({
+        resetPasswordToken: req.params.token,
+        resetPasswordExpires: { $gt: Date.now() },
+      })
+      if (!user) {
+        next(createError(401, `User isnot found`))
+      } else {
+        const { accessToken, refreshToken } = await JWTAuthenticate(user)
+        user.password = req.body.password
+        user.resetPasswordToken = undefined
+        user.resetPasswordExpires = undefined
+      }
+      confirmResetPasswordEmail(user)
+      res.status(201).send(`Your password has been updated`)
+    } else {
+      next(createError(400, errors.mapped()))
+    }
+  } catch (error) {
+    next(error)
+    console.log(error)
+  }
+})
 userRouter.post("/logout", JWTAuthMiddleware, async (req, res, next) => {
   try {
     let user = req.user
@@ -144,6 +216,9 @@ userRouter.get(
         firstName: entry.firstName,
         lastName: entry.lastName,
         avatar: entry.avatar,
+        email: entry.email,
+        createdAt: entry.createdAt,
+        role: entry.role,
       }))
       const pages = Math.ceil(users / query.options.limit)
       res
@@ -237,7 +312,7 @@ userRouter.post(
       await user.save()
       res.status(200).send(user)
     } catch (error) {
-      console.log(error)
+      ////console.log(error)
       next(error)
     }
   }

@@ -10,16 +10,16 @@ const cartRouter = express.Router()
 cartRouter.post("/", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const items = req.body.products
-    console.log(items)
+    ////console.log(items)
     const products = calculateItemTax(items)
-    console.log(products)
+    ////console.log(products)
     const user = req.user._id
     const cart = new CartSchema({ user, products })
     const cartSaved = await cart.save()
     decreaseQuantity(products)
     res.status(201).send(cartSaved)
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     next(createError(500, "internal Server Error"))
   }
 })

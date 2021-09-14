@@ -27,7 +27,7 @@ brandRouter.post(
         res.status(201).send(createdBrand)
       }
     } catch (error) {
-      console.log(error)
+      ////console.log(error)
       next(createError(500, "Internal SERVER ERROR"))
     }
   }

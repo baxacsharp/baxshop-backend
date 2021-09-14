@@ -3,24 +3,15 @@ import express, { response } from "express"
 const router = express.Router()
 
 import multer from "multer"
-import AWS from "aws-sdk"
-import Mongoose from "mongoose"
-import jwt from "jsonwebtoken"
+import createError from "http-errors"
 // Bring in Models & Helpers
 import Product from "../../schemas/ProductsSchema.js"
 import Brand from "../../schemas/brandSchema.js"
 import Category from "../../schemas/categorySchema.js"
 import { CloudinaryStorage } from "multer-storage-cloudinary"
 import { v2 as cloudinary } from "cloudinary"
-import Wishlist from "../../schemas/wishListSchema.js"
 import { JWTAuthMiddleware } from "../../Auth/middlewares.js"
 import { role } from "../../Auth/permissions.js"
-import { JWTAuthenticate, verifyToken } from "../../Auth/tools.js"
-const cloudinaryStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: "Ecommerce-product" },
-})
-const upload = multer({ storage: cloudinaryStorage }).array("image")
 // fetch product slug api
 router.get("/item/:slug", async (req, res) => {
   try {
@@ -69,7 +60,7 @@ router.get("/list/search/:name", async (req, res) => {
       products: productDoc,
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -180,7 +171,7 @@ router.post("/advancedFilters", async (req, res) => {
       totalProducts: productsCount.length,
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -252,7 +243,7 @@ router.get("/list", async (req, res) => {
       totalProducts: products.length,
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -293,7 +284,7 @@ router.get("/list/category/:slug", async (req, res) => {
       products,
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -322,7 +313,7 @@ router.get("/list/brand/:slug", async (req, res) => {
       products,
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -349,55 +340,16 @@ router.post(
   "/add",
   JWTAuthMiddleware,
   role.checkRole(role.ROLES.Admin, role.ROLES.Merchant),
-  upload,
   async (req, res) => {
     try {
-      console.log(req.body)
-      const sku = req.body.sku
-      const name = req.body.name
-      const description = req.body.description
-      const quantity = req.body.quantity
-      const price = req.body.price
-      const taxable = req.body.taxable
-      const isActive = req.body.isActive
-      const brand = req.body.brand
-      const imageUrl = req.files[0].path
+      const entry = req.body
 
-      if (!sku) {
-        return res.status(400).json({ error: "You must enter sku." })
-      }
-
-      if (!description || !name) {
-        return res
-          .status(400)
-          .json({ error: "You must enter description & name." })
-      }
-
-      if (!quantity) {
-        return res.status(400).json({ error: "You must enter a quantity." })
-      }
-
-      if (!price) {
-        return res.status(400).json({ error: "You must enter a price." })
-      }
-
-      const foundProduct = await Product.findOne({ sku })
+      const foundProduct = await Product.findOne({ sku: req.body.sku })
 
       if (foundProduct) {
         return res.status(400).json({ error: "This sku is already in use." })
       }
-
-      const product = new Product({
-        sku,
-        name,
-        description,
-        quantity,
-        price,
-        taxable,
-        isActive,
-        brand,
-        imageUrl,
-      })
+      const product = new Product(entry)
 
       const savedProduct = await product.save()
 
@@ -407,14 +359,38 @@ router.post(
         product: savedProduct,
       })
     } catch (error) {
-      console.log(error)
+      ////console.log(error)
       return res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })
     }
   }
 )
-
+const cloudinaryStorage = new CloudinaryStorage({
+  cloudinary,
+  params: { folder: "Ecommerce-product" },
+})
+const upload = multer({ storage: cloudinaryStorage }).array("image")
+router.post("/:id/image", upload, async (req, res, next) => {
+  try {
+    let result
+    const id = req.params.id
+    if (!id) {
+      next(createError(404, `Id is not found`))
+    } else {
+      result = await Product.findByIdAndUpdate(
+        id,
+        { $set: { imageUrl: req.files[0].path } },
+        { new: true, useFindAndModify: false }
+      )
+    }
+    ////console.log(result)
+    if (result) res.status(201).send(result)
+  } catch (error) {
+    ////console.log(error)
+    next(error)
+  }
+})
 // fetch products api
 router.get(
   "/",
@@ -454,7 +430,7 @@ router.get(
         products,
       })
     } catch (error) {
-      console.log(response)
+      ////console.log(response)
       res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })
@@ -503,7 +479,7 @@ router.get(
         product: productDoc,
       })
     } catch (error) {
-      console.log(error)
+      ////console.log(error)
       res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })

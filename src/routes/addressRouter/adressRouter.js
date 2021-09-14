@@ -23,7 +23,7 @@ addressRouter.get("/:id", async (req, res, next) => {
       res.status(404, `id ${req.params.id} is not found`)
     }
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     next(createError(500, "Internal Server Error"))
   }
 })
@@ -64,13 +64,10 @@ addressRouter.put("/:id", JWTAuthMiddleware, async (req, res, next) => {
     const editedAddress = await adressSchema.findOneAndUpdate(
       { _id: req.params.id },
       req.body,
-      { new: true }
+      { new: true, useFindAndModify: false }
     )
-    if (editedAddress) {
-      res.status(204).send(editedAddress)
-    } else {
-      next(createError(404, `id provided ${req.params.id} is not found`))
-    }
+
+    res.status(204).send(editedAddress)
   } catch (error) {
     next(createError(500, "Internal Server Error"))
   }

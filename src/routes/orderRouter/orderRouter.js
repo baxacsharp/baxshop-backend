@@ -12,11 +12,11 @@ import { calculateTaxAmount } from "../../helpers/tax.js"
 
 router.post("/add", JWTAuthMiddleware, async (req, res) => {
   try {
-    // console.log(req.body)
+    // ////console.log(req.body)
     const cart = req.body.cartId
     const total = req.body.total
     const user = req.user._id
-    // console.log(total)
+    // ////console.log(total)
     const order = new Order({
       cart,
       user,
@@ -40,7 +40,7 @@ router.post("/add", JWTAuthMiddleware, async (req, res) => {
       products: cartDoc.products,
     }
 
-    // await orderConfirmationEmail(order.user)
+    await orderConfirmationEmail(order.user)
 
     res.status(200).json({
       success: true,
@@ -48,7 +48,7 @@ router.post("/add", JWTAuthMiddleware, async (req, res) => {
       order: { _id: orderDoc._id },
     })
   } catch (error) {
-    console.log(error)
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -119,6 +119,7 @@ router.get("/search", JWTAuthMiddleware, async (req, res) => {
       })
     }
   } catch (error) {
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -147,11 +148,11 @@ router.get("/", JWTAuthMiddleware, async (req, res) => {
         return {
           _id: o._id,
           total: parseFloat(Number(o.total.toFixed(2))),
-          created: o.created,
+          created: o.createdAt,
           products: o.cart?.products,
         }
       })
-
+      // ////console.log(newOrders)
       let orders = newOrders.map((o) => calculateTaxAmount(o))
       orders.sort((a, b) => b.created - a.created)
       res.status(200).json({
@@ -163,6 +164,7 @@ router.get("/", JWTAuthMiddleware, async (req, res) => {
       })
     }
   } catch (error) {
+    //console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
@@ -172,6 +174,7 @@ router.get("/", JWTAuthMiddleware, async (req, res) => {
 // fetch order api
 router.get("/:orderId", JWTAuthMiddleware, async (req, res) => {
   try {
+    ////console.log(req.body)
     const orderId = req.params.orderId
 
     let orderDoc = null
@@ -208,18 +211,19 @@ router.get("/:orderId", JWTAuthMiddleware, async (req, res) => {
     let order = {
       _id: orderDoc._id,
       total: orderDoc.total,
-      created: orderDoc.created,
+      created: orderDoc.createdAt,
       totalTax: 0,
       products: orderDoc?.cart?.products,
       cartId: orderDoc.cart._id,
     }
 
-    order = caculateTaxAmount(order)
+    order = await calculateTaxAmount(order)
 
     res.status(200).json({
       order,
     })
   } catch (error) {
+    ////console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })

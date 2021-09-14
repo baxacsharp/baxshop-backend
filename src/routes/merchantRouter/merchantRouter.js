@@ -57,7 +57,7 @@ router.post("/seller-request", async (req, res) => {
 
     const merchantDoc = await merchant.save()
 
-    await merchantApplicationEmail(email)
+    await merchantApplicationEmail(merchant)
     res.status(200).json({
       success: true,
       message: `We received your request! we will reach you on your phone number ${phoneNumber}!`,
@@ -120,6 +120,7 @@ router.put(
         success: true,
       })
     } catch (error) {
+      console.log(error)
       res.status(400).json({
         error: "Your request could not be processed. Please try again.",
       })

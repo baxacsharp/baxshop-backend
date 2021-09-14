@@ -13,11 +13,13 @@ export const disableProducts = (products) => {
 
 //calculating the tax amount of the order
 export const calculateTaxAmount = (order) => {
+  //console.log(order.products)
   const taxRate = 0.5
   order.totalTax = 0
   if (order.products && order.products.length > 0) {
     order.products.map((item) => {
-      const price = item.buyPrice || item.products.price
+      // ////console.log(item)
+      const price = item.buyPrice || item.product.price
       const quantity = item.quantity
       item.totalPrice = price * quantity
       item.buyPrice = price
@@ -37,18 +39,22 @@ export const calculateTaxAmount = (order) => {
       )
     })
   }
-  const hasCancelledItem = order.products.filter(item.status === "Cancelled")
-  if (hasCancelledItem.length > 0) {
-    order.total = this.calculateOrderTotal(order)
-  }
-  const currentTotal = this.calculateOrderTotal(order)
-  if (currentTotal !== order.total) {
-    order.total = this.calculateOrderTotal(order)
-  }
-  order.totalWithTax = order.total + order.totalTax
+  const hasCancelledItem = order.products.filter(
+    (item) => item.status === "Cancelled"
+  )
+  // if (hasCancelledItem.length > 0) {
+  //   order.total = this.calculateOrderTotal(order)
+  // }
+  // const currentTotal = this.calculateOrderTotal(order)
+  // ////console.log(currentTotal)
+  // if (currentTotal !== order.total) {
+  //   order.total = this.calculateOrderTotal(order)
+  // }
+  order.totalWithTax = order.total + order.products.totalTax
+  ////console.log(order.totalWithTax)
   order.total = parseFloat(Number(order.total.toFixed(2)))
   order.totalTax = parseFloat(
-    Number(order.totalTax && order.totalTax.toFixed(2))
+    Number(order.products.totalTax && order.products.totalTax.toFixed(2))
   )
   order.totalWithTax = parseFloat(Number(order.totalWithTax.toFixed(2)))
   return order
@@ -60,7 +66,7 @@ export const calculateOrderTotal = (order) => {
   return total
 }
 export const calculateItemTax = (items) => {
-  console.log(items)
+  ////console.log(items)
   const taxRate = 0.5
   const products =
     items &&
@@ -69,8 +75,8 @@ export const calculateItemTax = (items) => {
       item.totalPrice = 0
       item.totalTax = 0
       item.buyPrice = 0
-      const price = item[0]?.price
-      const quantity = item[0]?.quantity
+      const price = item.price
+      const quantity = item.quantity
       item.totalPrice = parseFloat(Number((price * quantity).toFixed(2)))
       if (item.taxable) {
         const taxAmount = price * (taxRate / 100) * 100
@@ -79,8 +85,8 @@ export const calculateItemTax = (items) => {
         item.priceWithTax = parseFloat(
           Number((item.totalPrice + item.totalTax).toFixed(2))
         )
-        return item
       }
+      return item
     })
   return products
 }
