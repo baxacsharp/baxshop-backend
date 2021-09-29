@@ -24,44 +24,33 @@ const port = process.env.PORT || 3001
 if (process.env.TS_NODE_DEV || process.env.NODE_ENV === "test")
   require("dotenv").config()
 
-// const { FRONTEND_DEV_URL, FRONTEND_PROD_URL } = process.env
-// if (!FRONTEND_DEV_URL || !FRONTEND_PROD_URL)
-//   throw new Error("Environment variables unreachable.")
+const { FRONTEND_DEV_URL, FRONTEND_PROD_URL } = process.env
+if (!FRONTEND_DEV_URL || !FRONTEND_PROD_URL)
+  throw new Error("Environment variables unreachable.")
 
-// const whitelist = [
-//   FRONTEND_DEV_URL,
-//   FRONTEND_PROD_URL,
-//   `${FRONTEND_PROD_URL}/`,
-//   `${FRONTEND_DEV_URL}/`,
-// ]
-// export const corsOptions = {
-//   origin: (origin, next) => {
-//     try {
-//       if (whitelist.indexOf(origin) !== -1) next(null, true)
-//       else
-//         next(
-//           createError(400, "Cross-Site Origin Policy blocked your request"),
-//           true
-//         )
-//     } catch (error) {
-//       next(error)
-//     }
-//   },
-//   credentials: true,
-// }
+const whitelist = [
+  FRONTEND_DEV_URL,
+  FRONTEND_PROD_URL,
+  `${FRONTEND_PROD_URL}/`,
+  `${FRONTEND_DEV_URL}/`,
+]
+export const corsOptions = {
+  origin: (origin, next) => {
+    try {
+      if (whitelist.indexOf(origin) !== -1) next(null, true)
+      else
+        next(
+          createError(400, "Cross-Site Origin Policy blocked your request"),
+          true
+        )
+    } catch (error) {
+      next(error)
+    }
+  },
+  credentials: true,
+}
 
-// import fs from "fs"
-// import { fileURLToPath } from "url"
-// import { dirname, join } from "path"
-// const noAvatar = join(
-//   dirname(fileURLToPath(import.meta.url)),
-//   "./resources/images/noavatar.png"
-// )
-// server.get("/images/noavatar.png", (req, res, next) => {
-//   res.sendFile(noAvatar)
-// })
-
-server.use(cors({ origin: "http://localhost:3000", credentials: true }))
+server.use(cors(corsOptions))
 server.use(express.json())
 server.use(cookieParser())
 server.use(passport.initialize())
