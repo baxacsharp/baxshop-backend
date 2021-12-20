@@ -49,8 +49,9 @@ export const corsOptions = {
   },
   credentials: true,
 }
-
-server.use(cors(corsOptions))
+const except = (paths, fn) => (req, res, next) => paths.some(path => req.path.startsWith(path)) ? next() : fn(req, res, next)
+const corsExceptions = ['/user/google/login','/user/googleRedirect']
+server.use(except(corsExceptions, cors(corsOptions)))
 server.use(express.json())
 server.use(cookieParser())
 server.use(passport.initialize())
