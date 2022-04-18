@@ -152,7 +152,7 @@ router.get("/", JWTAuthMiddleware, async (req, res) => {
           products: o.cart?.products,
         }
       })
-      // ////console.log(newOrders)
+      console.log(newOrders)
       let orders = newOrders.map((o) => calculateTaxAmount(o))
       orders.sort((a, b) => b.created - a.created)
       res.status(200).json({
@@ -164,7 +164,7 @@ router.get("/", JWTAuthMiddleware, async (req, res) => {
       })
     }
   } catch (error) {
-    //console.log(error)
+    console.log(error)
     res.status(400).json({
       error: "Your request could not be processed. Please try again.",
     })
